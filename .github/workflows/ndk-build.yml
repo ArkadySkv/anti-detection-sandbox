@@ -1,4 +1,4 @@
-name: Android NDK Build
+name: Android Zygisk & Evdev Build (Snapdragon 680)
 
 on: [push, pull_request]
 
@@ -10,20 +10,34 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Используем встроенный в Ubuntu Runner инструмент sdkmanager для точечной установки NDK
       - name: Install Android NDK via SDKManager
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
 
-      - name: Build C++ Evdev Component
+      # GitHub Actions сам скачает и подготовит Dobby Engine, который указан на вашем скриншоте
+      - name: Clone Dobby Hooking Engine
         run: |
+          git clone --depth 1 https://github.com/zygisk-anti-detect/dobby
+
+      - name: Build Zygisk Module & Evdev via ndk-build
+        run: |
+          # 1. Компилируем Zygisk-часть со скриншота
+          cd zygisk-anti-detect
+          $ANDROID_HOME/ndk/25.2.9519653/ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_ABI=arm64-v8a
+          
+          # 2. Компилируем обновленный нативный ПФ-инжектор
+          cd ../
           $ANDROID_HOME/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang++ \
           evdev-input/human_touch.cpp \
           -o human_touch \
           -static-libstdc++
 
-      - name: Upload Compiled Binary
+      - name: Download official zygisk.hpp API
+        run: |
+          curl -L -o zygisk.hpp https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp
+
+      - name: Upload Compiled Zygisk Module
         uses: actions/upload-artifact@v4
         with:
-          name: human_touch_binary
-          path: human_touch
+          name: zygisk_antifraud_bypass
+          path: zygisk-anti-detect/libs/arm64-v8a/libantifraud_bypass.so
