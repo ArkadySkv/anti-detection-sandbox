@@ -93,17 +93,17 @@ void emulate_human_swipe(const char* device_path, Point start, Point end) {
     std::cout << "[+] Свайп успешно завершен." << std::endl;
 }
 
-int main() {
-    // В Android тачскрин обычно находится на /dev/input/event1, event2 или event3.
-    // Узнать точный можно командой: adb shell getevent -p
+int main(int argc, char* argv[]) {
+    // Путь по умолчанию, если пользователь не указал аргумент
     std::string touch_device = "/dev/input/event4"; 
 
+    // Если при запуске передан аргумент (например, ./human_touch 4), используем его
     if (argc > 1) {
         touch_device = "/dev/input/event" + std::string(argv[1]);
     }
-    
-    std::cout << "[*] Используем устройство ввода: " << touch_device << std::endl;
 
+    std::cout << "[*] Используем устройство ввода: " << touch_device << std::endl;
+    
     Point start_point = {300.0, 1500.0}; // Начало свайпа (низ экрана)
     Point end_point = {350.0, 400.0};    // Конец свайпа (верх экрана)
 
