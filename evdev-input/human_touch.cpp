@@ -107,6 +107,6 @@ int main() {
     Point start_point = {300.0, 1500.0}; // Начало свайпа (низ экрана)
     Point end_point = {350.0, 400.0};    // Конец свайпа (верх экрана)
 
-    emulate_human_swipe(touch_device, start_point, end_point);
+    emulate_human_swipe(touch_device.c_str(), start_point, end_point);
     return 0;
 }
