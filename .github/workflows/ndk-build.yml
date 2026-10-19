@@ -1,0 +1,29 @@
+name: Android NDK Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Android NDK
+        uses: android-actions/setup-ndk@v1
+        with:
+          ndk-version: r25c # Стабильная версия NDK
+
+      - name: Build C++ Evdev Component
+        run: |
+          $ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang++ \
+          evdev-input/human_touch.cpp \
+          -o human_touch \
+          -static-libstdc++
+
+      - name: Upload Compiled Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: human_touch_binary
+          path: human_touch
