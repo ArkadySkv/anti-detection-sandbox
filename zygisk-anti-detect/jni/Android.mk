@@ -1,16 +1,16 @@
 LOCAL_PATH := $(call my-dir)
 
-# Задаем конфигурацию исходников Dobby для сборщика ndk-build
-DOBBY_SOURCE_DIR := $(LOCAL_PATH)/dobby
-
-# Включаем заголовочные файлы локальной jni папки и инклуды Dobby
-LOCAL_C_INCLUDES := $(LOCAL_PATH)/.. $(LOCAL_PATH)/dobby/include
+# Явно задаем пути к инклудам через LOCAL_PATH
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/.. \
+    $(LOCAL_PATH)/dobby/include \
+    $(LOCAL_PATH)/dobby/source
 
 # Собираем основной Zygisk-модуль
 include $(CLEAR_VARS)
 LOCAL_MODULE := antifraud_bypass
 
-# ИСПРАВЛЕНО: Указываем правильный относительный путь к файлу module.cpp
+# Указываем путь к вашему файлу module.cpp
 LOCAL_SRC_FILES := ../module.cpp
 
 # Добавляем все необходимые исходные файлы Dobby для архитектуры ARM64
@@ -22,7 +22,7 @@ LOCAL_SRC_FILES += \
     dobby/source/PlatformUnifiedInterface/ExecMemory/ClearCache-linux.cc \
     dobby/source/PlatformUnifiedInterface/ExecMemory/PlatformExecMemory-linux.cc
 
-# Задаем флаги компиляции для сборки Dobby внутри проекта
+# Флаги компиляции для сборки исходников Dobby внутри проекта
 LOCAL_CFLAGS := -DDOBBY_DEBUG -DLOG_TAG=\"Dobby\"
 LOCAL_LDLIBS := -llog
 
