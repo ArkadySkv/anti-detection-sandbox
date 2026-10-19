@@ -1,17 +1,29 @@
 LOCAL_PATH := $(call my-dir)
 
-include $(CLEAR_VARS)
-LOCAL_MODULE := dobby
-LOCAL_SRC_FILES := dobby/android-prebuilt/arm64-v8a/libdobby.a
-include $(PREBUILT_STATIC_LIBRARY)
+# 1. Задаем конфигурацию исходников Dobby для сборщика ndk-build
+DOBBY_SOURCE_DIR := $(LOCAL_PATH)/dobby
 
+# Включаем заголовочные файлы локальной jni папки и инклуды Dobby
+LOCAL_C_INCLUDES := $(LOCAL_PATH) $(DOBBY_SOURCE_DIR)/include
+
+# 2. Собираем основной Zygisk-модуль
 include $(CLEAR_VARS)
 LOCAL_MODULE := antifraud_bypass
+
+# Добавляем ваш код маскировки
 LOCAL_SRC_FILES := module.cpp
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH) $(LOCAL_PATH)/dobby/include
+# Добавляем все необходимые исходные файлы Dobby для архитектуры ARM64
+LOCAL_SRC_FILES += \
+    dobby/source/dobby.cc \
+    dobby/source/Interceptor.cc \
+    dobby/source/TrampolineBridge/ClosureTrampolineBridge/ClosureTrampolineBridge.cc \
+    dobby/source/InstructionRelocation/Arm64/InstructionRelocationArm64.cc \
+    dobby/source/PlatformUnifiedInterface/ExecMemory/ClearCache-linux.cc \
+    dobby/source/PlatformUnifiedInterface/ExecMemory/PlatformExecMemory-linux.cc
 
-LOCAL_STATIC_LIBRARIES := dobby
+# Задаем флаги компиляции для сборки Dobby внутри проекта
+LOCAL_CFLAGS := -DDOBBY_DEBUG -DLOG_TAG=\"Dobby\"
 LOCAL_LDLIBS := -llog
 
 include $(BUILD_SHARED_LIBRARY)
