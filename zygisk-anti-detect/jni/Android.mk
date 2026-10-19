@@ -1,14 +1,20 @@
 LOCAL_PATH := $(call my-dir)
 
-# Явно задаем пути к инклудам через LOCAL_PATH
+# Собираем основной Zygisk-модуль
+include $(CLEAR_VARS)
+LOCAL_MODULE := antifraud_bypass
+
+# ВАЖНО: Объявляем пути поиска инклудов СТРОГО здесь, чтобы include $(CLEAR_VARS) их не стирал
 LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/.. \
     $(LOCAL_PATH)/dobby/include \
     $(LOCAL_PATH)/dobby/source
 
-# Собираем основной Zygisk-модуль
-include $(CLEAR_VARS)
-LOCAL_MODULE := antifraud_bypass
+# Принудительно передаем компилятору пути поиска через флаги (-I), чтобы обойти любые баги ndk-build
+LOCAL_CFLAGS := -I$(LOCAL_PATH)/.. -I$(LOCAL_PATH)/dobby/include -I$(LOCAL_PATH)/dobby/source
+
+# Дополнительные флаги для правильной сборки исходников Dobby
+LOCAL_CFLAGS += -DDOBBY_DEBUG -DLOG_TAG=\"Dobby\"
 
 # Указываем путь к вашему файлу module.cpp
 LOCAL_SRC_FILES := ../module.cpp
@@ -22,8 +28,6 @@ LOCAL_SRC_FILES += \
     dobby/source/PlatformUnifiedInterface/ExecMemory/ClearCache-linux.cc \
     dobby/source/PlatformUnifiedInterface/ExecMemory/PlatformExecMemory-linux.cc
 
-# Флаги компиляции для сборки исходников Dobby внутри проекта
-LOCAL_CFLAGS := -DDOBBY_DEBUG -DLOG_TAG=\"Dobby\"
 LOCAL_LDLIBS := -llog
 
 include $(BUILD_SHARED_LIBRARY)
