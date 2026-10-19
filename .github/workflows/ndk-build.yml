@@ -10,14 +10,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Android NDK
-        uses: android-actions/setup-ndk@v1
-        with:
-          ndk-version: r25c # Стабильная версия NDK
+      # Используем встроенный в Ubuntu Runner инструмент sdkmanager для точечной установки NDK
+      - name: Install Android NDK via SDKManager
+        run: |
+          echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
 
       - name: Build C++ Evdev Component
         run: |
-          $ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang++ \
+          $ANDROID_HOME/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang++ \
           evdev-input/human_touch.cpp \
           -o human_touch \
           -static-libstdc++
