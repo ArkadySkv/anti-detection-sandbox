@@ -1,68 +1,103 @@
 #include <iostream>
+#include <fcntl.h>
+#include <unistd.h>
+#include <linux/input.h>
 #include <cmath>
 #include <random>
 #include <chrono>
 #include <thread>
-#include <cstdlib>
 #include <string>
-#include <sstream>
 
 struct Point {
     double x;
     double y;
 };
 
-// Генерация шума для имитации дрожания человеческой руки
+// Функция генерации физического шума дрожания рук
 double get_random_noise(double min, double max) {
     static std::mt19937 gen(std::chrono::system_clock::now().time_since_epoch().count());
     std::uniform_real_distribution<double> dis(min, max);
     return dis(gen);
 }
 
-// Расчет кривой Безье с добавлением джиттера
+// Расчет траектории Безье с интеграцией джиттера
 Point calculate_bezier_point(Point p0, Point p1, Point p2, Point p3, double t) {
     Point p;
     p.x = std::pow(1 - t, 3) * p0.x + 3 * std::pow(1 - t, 2) * t * p1.x + 3 * (1 - t) * std::pow(t, 2) * p2.x + std::pow(t, 3) * p3.x;
     p.y = std::pow(1 - t, 3) * p0.y + 3 * std::pow(1 - t, 2) * t * p1.y + 3 * (1 - t) * std::pow(t, 2) * p2.y + std::pow(t, 3) * p3.y;
     
-    // Микро-шум, ломающий идеальную прямую линию бота
-    p.x += get_random_noise(-1.5, 1.5);
-    p.y += get_random_noise(-1.5, 1.5);
+    p.x += get_random_noise(-1.2, 1.2);
+    p.y += get_random_noise(-1.2, 1.2);
+    
     return p;
 }
 
-int main() {
-    Point start = {500.0, 1600.0}; // Начальная точка (середина-низ экрана)
-    Point end = {520.0, 400.0};    // Конечная точка (середина-верх экрана)
+// Прямая запись структуры input_event в ядро Linux Evdev
+void send_event(int fd, __u16 type, __u16 code, __s32 value) {
+    struct input_event ev;
+    ev.type = type;
+    ev.code = code;
+    ev.value = value;
+    ev.time.tv_sec = 0;
+    ev.time.tv_usec = 0;
+    write(fd, &ev, sizeof(struct input_event));
+}
 
-    // Генерация случайных отклонений для построения дуги скролла
-    Point p1 = { start.x + get_random_noise(-40, 40), start.y - get_random_noise(100, 300) };
-    Point p2 = { end.x + get_random_noise(-40, 40), end.y + get_random_noise(100, 300) };
-
-    std::cout << "[+] Генерация человеческого скролла Безье (No-Root)..." << std::endl;
-
-    std::stringstream cmd_stream;
-    // Формируем базовую команду: input touchscreen swipe <start_x> <start_y>
-    cmd_stream << "input touchscreen swipe " << static_cast<int>(start.x) << " " << static_cast<int>(start.y);
-
-    int steps = 10; // 10 промежуточных точек достаточно, чтобы Android построил плавный вектор движения
-    for (int i = 1; i <= steps; ++i) {
-        double t = static_cast<double>(i) / steps;
-        Point current = calculate_bezier_point(start, p1, p2, end, t);
-        
-        // Дописываем координаты точек свайпа в строку
-        cmd_stream << " " << static_cast<int>(current.x) << " " << static_cast<int>(current.y);
+void emulate_human_swipe(const char* device_path, Point start, Point end) {
+    int fd = open(device_path, O_WRONLY | O_NONBLOCK);
+    if (fd < 0) {
+        std::cerr << "Не удалось открыть evdev-устройство " << device_path << ". Нужен su/root!" << std::endl;
+        return;
     }
 
-    // Случайное время длительности свайпа (человек скроллит с разной скоростью: примерно 350-450 мс)
-    int duration = static_cast<int>(get_random_noise(350, 450));
-    cmd_stream << " " << duration;
+    // Случайные опорные точки для нелинейности движения
+    Point p1 = { start.x + get_random_noise(-60, 60), start.y + get_random_noise(30, 150) };
+    Point p2 = { end.x + get_random_noise(-60, 60), end.y + get_random_noise(-150, -30) };
 
-    std::string final_cmd = cmd_stream.str();
+    std::cout << "Инжекция нативного Touch Down..." << std::endl;
+    send_event(fd, EV_ABS, ABS_MT_TRACKING_ID, 1);
+    send_event(fd, EV_ABS, ABS_MT_POSITION_X, start.x);
+    send_event(fd, EV_ABS, ABS_MT_POSITION_Y, start.y);
+    send_event(fd, EV_SYN, SYN_REPORT, 0);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(get_random_noise(30, 60))));
+
+    int steps = 40;
+    for (int i = 0; i <= steps; ++i) {
+        double t = static_cast<double>(i) / steps;
+        Point current = calculate_bezier_point(start, p1, p2, end, t);
+
+        send_event(fd, EV_ABS, ABS_MT_POSITION_X, static_cast<int>(current.x));
+        send_event(fd, EV_ABS, ABS_MT_POSITION_Y, static_cast<int>(current.y));
+        send_event(fd, EV_SYN, SYN_REPORT, 0);
+
+        // Динамическая задержка — человек ведет палец неравномерно
+        double speed_noise = 7.0 + std::sin(t * M_PI) * 4.0 + get_random_noise(-1.5, 1.5);
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(speed_noise)));
+    }
+
+    std::cout << "[+] Инжекция нативного Touch Up..." << std::endl;
+    send_event(fd, EV_ABS, ABS_MT_TRACKING_ID, -1);
+    send_event(fd, EV_SYN, SYN_REPORT, 0);
+
+    close(fd);
+}
+
+int main(int argc, char* argv[]) {
+    // Индекс по умолчанию для тачскрина
+    std::string touch_device = "/dev/input/event4"; 
+
+    // Позволяет передавать индекс аргументом, например: ./human_touch 4
+    if (argc > 1) {
+        touch_device = "/dev/input/event" + std::string(argv[1]);
+    }
+
+    std::cout << "[*] Нацелено на evdev: " << touch_device << std::endl;
     
-    // Запускаем сформированную команду в систему Android
-    std::system(final_cmd.c_str());
+    // Стандартные экранные координаты для Redmi 10C
+    Point start_point = {400.0, 1400.0}; 
+    Point end_point = {420.0, 300.0};    
 
-    std::cout << "[+] Свайп успешно выполнен за один проход!" << std::endl;
+    emulate_human_swipe(touch_device.c_str(), start_point, end_point);
     return 0;
 }
