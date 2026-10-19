@@ -2,7 +2,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := dobby
-LOCAL_SRC_FILES := dobby/builtin-plugin/android-prebuilt/arm64-v8a/libdobby.a
+LOCAL_SRC_FILES := dobby/android-prebuilt/arm64-v8a/libdobby.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
