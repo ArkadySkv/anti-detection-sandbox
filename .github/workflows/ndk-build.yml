@@ -14,22 +14,34 @@ jobs:
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
 
-      # 1. Клонируем Dobby строго внутрь папки zygisk-anti-detect/dobby, как требует Android.mk
-      - name: Clone Dobby Hooking Engine
+      - name: Clone and Build Dobby Engine
         run: |
+          # Клонируем исходники Dobby строго в папку jni вашего проекта
           git clone --depth 1 https://github.com/LSPosed/Dobby.git zygisk-anti-detect/jni/dobby
+          
+          cd zygisk-anti-detect/jni/dobby
+          mkdir -p build && cd build
+          
+          # Собираем Dobby через CMake с помощью Android NDK
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/25.2.9519653/build/cmake/android.toolchain.cmake \
+                -DANDROID_ABI=arm64-v8a \
+                -DANDROID_PLATFORM=android-33 \
+                -DCMAKE_BUILD_TYPE=Release ..
+          make -j$(nproc)
+          
+          # Создаем папку, которую требует ваш Android.mk, и копируем туда собранную библиотеку
+          mkdir -p ../android-prebuilt/arm64-v8a
+          find . -name "libdobby.a" -exec cp {} ../android-prebuilt/arm64-v8a/ \;
 
-      # 2. Скачиваем официальный zygisk.hpp и кладем его прямо в папку к проекту
       - name: Download official zygisk.hpp API
         run: |
           curl -L -o zygisk-anti-detect/jni/zygisk.hpp https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp
 
-      # 3. Компиляция
       - name: Build Zygisk Module & Evdev via ndk-build
         run: |
           cd zygisk-anti-detect
           
-          # Запускаем ndk-build (он автоматически скомпилирует module.cpp)
+          # Запускаем ndk-build (он подхватит libdobby.a из созданной папки)
           $ANDROID_HOME/ndk/25.2.9519653/ndk-build NDK_PROJECT_PATH=. APP_ABI=arm64-v8a
           
           cd ../
@@ -40,7 +52,6 @@ jobs:
           -o human_touch \
           -static-libstdc++
 
-      # 4. Сохраняем собранные артефакты (и Zygisk-модуль, и ПФ-свайпер)
       - name: Upload Compiled Assets
         uses: actions/upload-artifact@v4
         with:
