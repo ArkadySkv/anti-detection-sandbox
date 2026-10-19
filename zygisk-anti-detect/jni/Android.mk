@@ -1,17 +1,17 @@
 LOCAL_PATH := $(call my-dir)
 
-# 1. Задаем конфигурацию исходников Dobby для сборщика ndk-build
+# Задаем конфигурацию исходников Dobby для сборщика ndk-build
 DOBBY_SOURCE_DIR := $(LOCAL_PATH)/dobby
 
 # Включаем заголовочные файлы локальной jni папки и инклуды Dobby
-LOCAL_C_INCLUDES := $(LOCAL_PATH) $(DOBBY_SOURCE_DIR)/include
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/.. $(LOCAL_PATH)/dobby/include
 
-# 2. Собираем основной Zygisk-модуль
+# Собираем основной Zygisk-модуль
 include $(CLEAR_VARS)
 LOCAL_MODULE := antifraud_bypass
 
-# Добавляем ваш код маскировки
-LOCAL_SRC_FILES := module.cpp
+# ИСПРАВЛЕНО: Указываем правильный относительный путь к файлу module.cpp
+LOCAL_SRC_FILES := ../module.cpp
 
 # Добавляем все необходимые исходные файлы Dobby для архитектуры ARM64
 LOCAL_SRC_FILES += \
