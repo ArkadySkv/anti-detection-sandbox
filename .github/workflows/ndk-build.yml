@@ -14,27 +14,37 @@ jobs:
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
 
-      # 1. Клонируем официальный репозиторий Dobby строго в jni/dobby
+      # 1. Клонируем официальный репозиторий Dobby во временную папку сервера
       - name: Clone Dobby Hooking Engine
         run: |
-          git clone --depth 1 https://github.com/LSPosed/Dobby.git zygisk-anti-detect/jni/dobby
+          git clone --depth 1 https://github.com/LSPosed/Dobby.git /tmp/dobby
 
-      # 2. Скачиваем zygisk.hpp и кладем его в корень jni папки
+      # 2. Переносим готовую либу и заголовочные файлы в jni/ по прямым путям
+      - name: Prepare Dobby Prebuilts inside JNI
+        run: |
+          # Копируем скомпилированную авторами либу для arm64-v8a
+          cp /tmp/dobby/android-prebuilt/arm64-v8a/libdobby.a zygisk-anti-detect/jni/libdobby.a
+          
+          # Копируем заголовочные файлы
+          mkdir -p zygisk-anti-detect/jni/dobby_includes
+          cp -r /tmp/dobby/include/* zygisk-anti-detect/jni/dobby_includes/
+
+      # 3. Скачиваем официальный zygisk.hpp API
       - name: Download official zygisk.hpp API
         run: |
-          curl -L -o zygisk-anti-detect/jni/zygisk.hpp https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp
+          curl -L -o zygisk-anti-detect/zygisk.hpp https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp
 
-      # 3. Единая компиляция проекта одной утилитой ndk-build
+      # 4. Запускаем компиляцию
       - name: Build Zygisk Module & Evdev via ndk-build
         run: |
           cd zygisk-anti-detect
           
-          # Запускаем ndk-build (он сам соберет и module.cpp, и исходники Dobby)
+          # ndk-build отработает мгновенно, так как dobby уже скомпилирован
           $ANDROID_HOME/ndk/25.2.9519653/ndk-build NDK_PROJECT_PATH=. APP_ABI=arm64-v8a
           
           cd ../
           
-          # Компилируем нативный ПФ-инжектор под процессор Snapdragon 680 вашего Redmi 10C
+          # Компилируем нативный ПФ-инжектор
           $ANDROID_HOME/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang++ \
           evdev-input/human_touch.cpp \
           -o human_touch \
