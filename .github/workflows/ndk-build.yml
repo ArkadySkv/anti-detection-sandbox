@@ -14,37 +14,47 @@ jobs:
         run: |
           echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
 
-      # 1. Клонируем официальный репозиторий Dobby во временную папку сервера
+      # 1. Clone Dobby source
       - name: Clone Dobby Hooking Engine
         run: |
           git clone --depth 1 https://github.com/LSPosed/Dobby.git /tmp/dobby
 
-      # 2. Переносим готовую либу и заголовочные файлы в jni/ по прямым путям
+      # 2. Build Dobby from source using CMake and the Android NDK
+      - name: Build Dobby Static Library
+        run: |
+          cd /tmp/dobby
+          mkdir -p build && cd build
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/25.2.9519653/build/cmake/android.toolchain.cmake \
+                -DANDROID_ABI=arm64-v8a \
+                -DANDROID_PLATFORM=android-33 \
+                -DCMAKE_BUILD_TYPE=Release ..
+          make -j$(nproc)
+
+      # 3. Copy the compiled library and headers into your jni/ folder
       - name: Prepare Dobby Prebuilts inside JNI
         run: |
-          # Копируем скомпилированную авторами либу для arm64-v8a
-          cp /tmp/dobby/android-prebuilt/arm64-v8a/libdobby.a zygisk-anti-detect/jni/libdobby.a
+          # Copy the compiled static library
+          cp /tmp/dobby/build/libdobby.a zygisk-anti-detect/jni/libdobby.a
           
-          # Копируем заголовочные файлы
+          # Copy headers
           mkdir -p zygisk-anti-detect/jni/dobby_includes
           cp -r /tmp/dobby/include/* zygisk-anti-detect/jni/dobby_includes/
 
-      # 3. Скачиваем официальный zygisk.hpp API
+      # 4. Download zygisk.hpp directly into the jni folder
       - name: Download official zygisk.hpp API
         run: |
-          curl -L -o zygisk-anti-detect/zygisk.hpp https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp
+          curl -L -o zygisk-anti-detect/jni/zygisk.hpp https://raw.githubusercontent.com/topjohnwu/zygisk-module-sample/master/module/jni/zygisk.hpp
 
-      # 4. Запускаем компиляцию
+      # 5. Run ndk-build
       - name: Build Zygisk Module & Evdev via ndk-build
         run: |
           cd zygisk-anti-detect
           
-          # ndk-build отработает мгновенно, так как dobby уже скомпилирован
           $ANDROID_HOME/ndk/25.2.9519653/ndk-build NDK_PROJECT_PATH=. APP_ABI=arm64-v8a
           
           cd ../
           
-          # Компилируем нативный ПФ-инжектор
+          # Compile the native injector
           $ANDROID_HOME/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android33-clang++ \
           evdev-input/human_touch.cpp \
           -o human_touch \
