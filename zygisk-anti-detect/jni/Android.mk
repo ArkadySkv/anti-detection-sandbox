@@ -2,7 +2,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := dobby
-LOCAL_SRC_FILES := $(LOCAL_PATH)/libdobby.a
+LOCAL_SRC_FILES := libdobby.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)

@@ -42,6 +42,9 @@ jobs:
           mkdir -p zygisk-anti-detect/jni/dobby_includes
           cp -r /tmp/dobby/include/* zygisk-anti-detect/jni/dobby_includes/
 
+          echo "--- Содержимое папки jni ---"
+          ls -la zygisk-anti-detect/jni/
+
       # 4. Download zygisk.hpp directly into the jni folder
       - name: Download official zygisk.hpp API
         run: |
